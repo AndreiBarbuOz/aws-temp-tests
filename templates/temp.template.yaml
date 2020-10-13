@@ -186,8 +186,8 @@ Resources:
         ToPort: '443'
         CidrIp: 0.0.0.0/0
       - IpProtocol: tcp
-        FromPort: '1434'
-        ToPort: '1434'
+        FromPort: '1433'
+        ToPort: '1433'
         CidrIp: 0.0.0.0/0
 #      SecurityGroupEgress:
 #      - IpProtocol: tcp
