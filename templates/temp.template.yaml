@@ -1,0 +1,256 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'temporary stack for concept validation'
+Parameters:
+  KeyPairName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  QSS3BucketName:
+    AllowedPattern: '^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$'
+    ConstraintDescription: >-
+      Quick Start bucket name can include numbers, lowercase letters, uppercase
+      letters, and hyphens (-). It cannot start or end with a hyphen (-).
+    Description: S3 bucket name hosting the Quickstart templates.
+    Type: String
+    Default: aws-quickstart
+  QSS3BucketRegion:
+    Default: us-east-1
+    Description: >-
+      The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted.
+      When using your own bucket, you must specify this value.
+    Type: String
+    AllowedPattern: (us(-gov)?|ap|ca|cn|eu|sa)-(central|(north|south)?(east|west)?)-\d
+    ConstraintDescription: Quick Start bucket region must be a valid AWS Region code.
+  QSS3KeyPrefix:
+    AllowedPattern: '^[0-9a-zA-Z-/]*/$'
+    ConstraintDescription: >-
+      Quick Start key prefix can include numbers, lowercase letters, uppercase
+      letters, and hyphens (-), and ending with a slash(/).
+    Default: quickstart-uipath-orchestrator/
+    Description: S3 key prefix under which Quick Start templates are hosted.
+    Type: String
+  OrchestratorVersion:
+    Description: UIPath Orchestrator Version Number
+    Type: String
+    Default: 20.4.3
+Conditions:
+  UsingDefaultBucket: !Equals
+    - !Ref QSS3BucketName
+    - aws-quickstart
+Resources:
+  LaunchConfiguration:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Authentication:
+        S3AccessCreds:
+          type: S3
+          roleName: !Ref 'ConfigS3IAMRole'
+          buckets: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      AWS::CloudFormation::Init:
+        configSets:
+          config:
+            - setup
+            - prerequisites
+            - install
+        setup:
+          files:
+            c:\cfn\cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackName}
+                region=${AWS::Region}
+                interval=1
+            c:\cfn\hooks.d\cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.LaunchConfiguration.Metadata
+                action=cfn-init.exe -v -c config -s ${AWS::StackName} -r LaunchConfiguration --region ${AWS::Region}
+            c:\cfn\scripts\Install-UiPathOrchestrator.ps1:
+              source:
+                !Sub
+                  - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}scripts/Install-UiPathOrchestrator.ps1'
+                  - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+                    S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+              authentication: S3AccessCreds
+            c:\cfn\scripts\Install-RolesAndFeatures.ps1:
+              source:
+                !Sub
+                  - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}scripts/Install-RolesAndFeatures.ps1'
+                  - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+                    S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+              authentication: S3AccessCreds
+            c:\cfn\scripts\Get-File.ps1:
+              source:
+                !Sub
+                  - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}scripts/Get-File.ps1'
+                  - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+                    S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+              authentication: S3AccessCreds
+            c:\cfn\scripts\Write-ConfigToS3.ps1:
+              source:
+                !Sub
+                  - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}scripts/Write-ConfigToS3.ps1'
+                  - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+                    S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+              authentication: S3AccessCreds
+          services:
+            windows:
+              cfn-hup:
+                enabled: 'true'
+                ensureRunning: 'true'
+                files:
+                  - c:\cfn\cfn-hup.conf
+                  - c:\cfn\hooks.d\cfn-auto-reloader.conf
+          commands:
+            a-set-execution-policy:
+              command: powershell.exe -command Set-ExecutionPolicy RemoteSigned -Force
+              waitAfterCompletion: '0'
+        prerequisites:
+          files:
+            c:\cfn\sources\UiPathOrchestrator.msi:
+              source: !Sub 'https://download.uipath.com/versions/${OrchestratorVersion}/UiPathOrchestrator.msi'
+            c:\cfn\sources\NDP472-KB4054530-x86-x64-AllOS-ENU.exe:
+              source: https://download.microsoft.com/download/6/E/4/6E48E8AB-DC00-419E-9704-06DD46E5F81D/NDP472-KB4054530-x86-x64-AllOS-ENU.exe
+            c:\cfn\sources\rewrite_amd64_en-US.msi:
+              source: https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi
+            c:\cfn\sources\dotnet-hosting-3.1.8-win.exe:
+              source: https://download.visualstudio.microsoft.com/download/pr/854cbd11-4b96-4a44-9664-b95991c0c4f7/8ec4944a5bd770faba2f769e647b1e6e/dotnet-hosting-3.1.8-win.exe
+          commands:
+            a-install-dotnet-framework:
+              command: start /wait c:\cfn\sources\NDP472-KB4054530-x86-x64-AllOS-ENU.exe /q /norestart
+              waitAfterCompletion: '0'
+            b-install-roles-and-features:
+              command: powershell.exe -command C:\cfn\scripts\Install-RolesAndFeatures.ps1
+              waitAfterCompletion: '0'
+            c-install-rewrite:
+              command: start /wait msiexec /i c:\cfn\sources\rewrite_amd64_en-US.msi /qn /quiet /passive /norestart
+              waitAfterCompletion: '0'
+              ignoreErrors: false
+            d-install-dotnet-core:
+              command: start /wait c:\cfn\sources\dotnet-hosting-3.1.8-win.exe OPT_NO_RUNTIME=1 /q /norestart
+              waitAfterCompletion: '0'
+        install:
+          commands:
+            a-execute-install:
+              command: powershell.exe -command C:\cfn\scripts\Install-UiPathOrchestrator.ps1 -orchestratorVersion 1.2.3
+              waitAfterCompletion: '0'
+    Properties:
+      InstanceType: c4.2xlarge
+      SecurityGroups:
+      - Ref: InstanceSecurityGroup
+      KeyName: !Ref KeyPairName
+      ImageId: ami-0ca69a9d06da3835d
+      IamInstanceProfile: !Ref ConfigS3InstanceProfile
+      UserData: !Base64
+        Fn::Sub: |
+          <script>
+          cfn-init.exe -v -c config -s ${AWS::StackId} -r LaunchConfiguration --region ${AWS::Region}
+          cfn-signal.exe -e %errorlevel% --stack ${AWS::StackId} --resource LaunchConfiguration --region ${AWS::Region}
+          </script>
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT1H
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable RDP access
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 3389
+        ToPort: 3389
+        CidrIp: 0.0.0.0/0
+  IPAddress:
+    Type: AWS::EC2::EIP
+  IPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref LaunchConfiguration
+      EIP: !Ref IPAddress
+  ConfigS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+  ConfigS3IAMRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Description: IAM Role providing S3 Access to EC2 instance
+  ConfigS3IAMPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 's3:GetAccelerateConfiguration'
+              - 's3:GetBucketLocation'
+              - 's3:GetBucketVersioning'
+              - 's3:ListBucket'
+              - 's3:ListBucketVersions'
+              - 's3:ListBucketMultipartUploads'
+            Resource: !GetAtt ConfigS3Bucket.Arn
+          - Effect: Allow
+            Action:
+              - 's3:AbortMultipartUpload'
+              - 's3:DeleteObject'
+              - 's3:DeleteObjectVersion'
+              - 's3:GetObject'
+              - 's3:GetObjectAcl'
+              - 's3:GetObjectVersion'
+              - 's3:ListMultipartUploadParts'
+              - 's3:PutObject'
+              - 's3:PutObjectAcl'
+            Resource: !Join
+              - ''
+              - - !GetAtt ConfigS3Bucket.Arn
+                - '/*'
+      PolicyName: configs3-iam-policy
+      Roles:
+        - !Ref ConfigS3IAMRole
+  QuickstartS3IAMPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - s3:GetObject
+              - s3:ListBucket
+            Resource: "*"
+            Effect: Allow
+      PolicyName: aws-quick-start-s3-policy
+      Roles:
+        - !Ref ConfigS3IAMRole
+  ConfigS3InstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+        - !Ref ConfigS3IAMRole
+      Path: '/'
+Outputs:
+  InstanceId:
+    Description: InstanceId of the newly created EC2 instance
+    Value:
+      Ref: LaunchConfiguration
+  InstanceIPAddress:
+    Description: IP address of the newly created EC2 instance
+    Value:
+      Ref: IPAddress

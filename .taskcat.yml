@@ -1,0 +1,42 @@
+#general:
+#  parameters:
+
+#    QSS3BucketName: tcat-temp-aws-tests-qmvx56m7
+#    QSS3BucketRegion: us-east-1
+#  s3_bucket: tcat-temp-aws-tests-qmvx56m7
+project:
+  name: temp-aws-tests
+  regions:
+  - ap-northeast-1
+  - ap-northeast-2
+  - ap-south-1
+  - ap-southeast-1
+  - ap-southeast-2
+  - ap-east-1
+  - ca-central-1
+  - eu-central-1
+  - eu-west-1
+  - eu-west-2
+  - eu-west-3
+  - me-south-1
+  - sa-east-1
+  - us-east-1
+  - us-east-2
+  - us-west-1
+  - us-west-2
+  shorten_stack_name: true
+  package_lambda: false
+tests:
+  default:
+    template: ./templates/temp.template.yaml
+    regions:
+    - us-east-2
+    parameters:
+      QSS3KeyPrefix: "temp-aws-tests/"
+      QSS3BucketName: tcat-a9b14d23975f5578a7b417253d4aef68-us-east-2
+      QSS3BucketRegion: us-east-2
+      OrchestratorLicense: ReplaceThis
+#general:
+#  s3_regional_buckets: true
+#  parameters:
+#    KeyPairName: <your_key_pair>

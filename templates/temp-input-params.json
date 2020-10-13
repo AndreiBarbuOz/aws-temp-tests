@@ -1,0 +1,20 @@
+[
+  {
+    "ParameterKey": "KeyPairName",
+    "ParameterValue": "marketplace-dev"
+  },
+  {
+    "ParameterKey": "QSS3BucketRegion",
+    "ParameterValue": "us-east-2"
+  },
+  {
+    "ParameterKey": "QSS3BucketName",
+    "ParameterValue": "tcat-a9b14d23975f5578a7b417253d4aef68-us-east-2"
+  },
+  {
+    "ParameterKey": "QSS3KeyPrefix",
+    "ParameterValue": "temp-aws-tests/"
+  }
+]
+
+
