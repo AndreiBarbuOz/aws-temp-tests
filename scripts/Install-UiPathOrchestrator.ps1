@@ -1,20 +1,18 @@
-    [CmdletBinding()]
+[CmdletBinding()]
 
-    param(
+param(
 
-        [Parameter()]
-        [string] $orchestratorVersion = "19.10.16"
-    )
+    [Parameter(Mandatory=$false)]
+    [AllowEmptyString()]
+    [string] $inputVal
+)
 
+[System.String]$script:tmp = $inputVal
 
-    function Main
-    {
-        Write-Host "Installing Orchestrator Version" + $orchestratorVersion
-
-        New-Item "c:\cfn-tmp" -ItemType Directory -Force
-
-        $item = "c:\cfn-tmp\" + (Get-Date).ToString("MM-dd-yy-hh-mm")
-        New-Item $item -ItemType File
+function Main {
+    if ((Test-Path C:\uipath\projects) -and (Test-Path C:\uipath\projects\aws-temp-tests)) {
+        Write-Host "Installing Orchestrator Version" + $tmp
     }
+}
 
-    Main
+Main
