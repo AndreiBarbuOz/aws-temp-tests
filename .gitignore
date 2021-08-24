@@ -1,4 +1,5 @@
 .idea/
 taskcat_outputs/
 .vscode
-__pycache__
+__pycache__/
+
