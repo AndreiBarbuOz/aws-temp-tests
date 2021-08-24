@@ -1,16 +1,9 @@
 general:
   parameters:
-    AdminPassword: QWbGk1VhWiN8m
-    UiRobotType: Unattended
-    RobotRole: localadmin
-    OrchestratorURL: https://corp-orchestrator.com/
-    OrchestratorAPIUser: apiuser
-    OrchestratorAPIPassword: QWbGk1VhWiN8m
-    OrchestratorTenant: Default
-    RDSUsername: corpaws
-    OrchestratorPassword: QWbGk1VhWiN8m
-    OrchestratorLicense: ""
-    HAALicense: ""
+    QSS3KeyPrefix: "temp-aws-tests/"
+    QSS3BucketName: "$[taskcat_autobucket]"
+    QSS3BucketRegion: "$[taskcat_current_region]"
+
 project:
   name: temp-aws-tests
   regions:
@@ -39,13 +32,4 @@ tests:
     regions:
     - us-east-2
     parameters:
-      QSS3KeyPrefix: "temp-aws-tests/"
-      QSS3BucketName: "$[taskcat_autobucket]"
-      QSS3BucketRegion: "$[taskcat_current_region]"
-      AvailabilityZones: "$[taskcat_getaz_2]"
-      UiPathFQDN: "$[taskcat_random-string]" #.uipathmarketplace.net
-      HAAUser: admin@uipathmarketplace.net
-      HAAPassword: "$[taskcat_genpass_8]"
-      RDSPassword: "$[taskcat_genpass_8]"
-      GatewayName: "$[taskcat_random-string]"
-      RDSDBName: "$[taskcat_random-string]"
+      RDSUsername: "$[taskcat_random-string]admin"
